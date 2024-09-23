@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import eu.arrowhead.common.exception.InternalServerError;
 import eu.arrowhead.common.exception.InvalidParameterException;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,8 @@ import org.springframework.http.MediaType;
 import org.mockito.Mockito;
 
 import eu.arrowhead.common.Utilities;
+import eu.arrowhead.dto.DeviceListResponseDTO;
+import eu.arrowhead.dto.DeviceLookupRequestDTO;
 import eu.arrowhead.dto.DeviceRequestDTO;
 import eu.arrowhead.dto.DeviceResponseDTO;
 import eu.arrowhead.dto.ErrorMessageDTO;
@@ -56,6 +59,8 @@ public class DeviceDiscoveryAPITest {
     
     private final String REGISTER_DEVICE_METADATA_NOT_MATCHING_MESSAGE = "Device with name '" + testDeviceName + "' already exists, but provided metadata is not matching";
     private final String REGISTER_DEVICE_INTERFACES_NOT_MATCHING_MESSAGE = "Device with name '" + testDeviceName + "' already exists, but provided interfaces are not matching";
+    private final String LOOKUP_DEVICE_INVALID_DEVICE_NAME_LIST__MESSAGE = "Device name list contains null or empty element";
+    private final String INTERNAL_SERVER_ERROR_MESSAGE = "Database operation error";
     
     @BeforeEach
     public void setup() throws Exception {
@@ -65,12 +70,11 @@ public class DeviceDiscoveryAPITest {
     //MINDEGYIKRE:
     // * forbidden
     // * unauthorized
-    // * internal server error
 
     
     //-------------------------------------------------------------------------------------------------
     @Test
-	public void PostNewDevice_ReturnCreated() throws Exception {
+	public void RegisterNewDevice_ReturnCreated() throws Exception {
 		
 		Mockito.when(mockDeviceDiscoveryService.registerDevice(Mockito.any(DeviceRequestDTO.class), Mockito.anyString()))
 			.thenAnswer(invocation -> Map.entry(createDeviceResponseDTO(invocation.getArgument(0)), true));
@@ -87,7 +91,7 @@ public class DeviceDiscoveryAPITest {
 	
 	//-------------------------------------------------------------------------------------------------
 	@Test
-	public void PostExistingDevice_ReturnOk() throws Exception {
+	public void RegisterExistingDevice_ReturnOk() throws Exception {
 		
 		Mockito.when(mockDeviceDiscoveryService.registerDevice(Mockito.any(DeviceRequestDTO.class), Mockito.anyString()))
 			.thenAnswer(invocation -> Map.entry(createDeviceResponseDTO(invocation.getArgument(0)), false));
@@ -104,12 +108,12 @@ public class DeviceDiscoveryAPITest {
 	
 	//-------------------------------------------------------------------------------------------------
 	@Test
-	public void PostExistingDevice_DifferentMetadata_ReturnBadRequest() throws Exception {
+	public void RegisterExistingDevice_DifferentMetadata_ReturnBadRequest() throws Exception {
 		
 		final String origin = HttpMethod.POST.name() + " " + ServiceRegistryConstants.HTTP_API_DEVICE_DISCOVERY_PATH + ServiceRegistryConstants.HTTP_API_OP_REGISTER_PATH;
 		
 		Mockito.when(mockDeviceDiscoveryService.registerDevice(testDeviceDto, origin))
-			.thenThrow(new InvalidParameterException("Device with name '" + testDeviceDto.name() + "' already exists, but provided metadata is not matching", origin));
+			.thenThrow(new InvalidParameterException(REGISTER_DEVICE_METADATA_NOT_MATCHING_MESSAGE, origin));
 		
 		final MvcResult response = mockMvc.perform(post(ServiceRegistryConstants.HTTP_API_DEVICE_DISCOVERY_PATH + ServiceRegistryConstants.HTTP_API_OP_REGISTER_PATH)
 				.contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -123,11 +127,11 @@ public class DeviceDiscoveryAPITest {
 	
 	//-------------------------------------------------------------------------------------------------
 	@Test
-	public void PostExistingDevice_DifferentAddresses_ReturnBadRequest() throws Exception {
+	public void RegisterExistingDevice_DifferentAddresses_ReturnBadRequest() throws Exception {
 		final String origin = HttpMethod.POST.name() + " " + ServiceRegistryConstants.HTTP_API_DEVICE_DISCOVERY_PATH + ServiceRegistryConstants.HTTP_API_OP_REGISTER_PATH;
 		
 		Mockito.when(mockDeviceDiscoveryService.registerDevice(testDeviceDto, origin))
-			.thenThrow(new InvalidParameterException("Device with name '" + testDeviceDto.name() + "' already exists, but provided interfaces are not matching", origin));
+			.thenThrow(new InvalidParameterException(REGISTER_DEVICE_INTERFACES_NOT_MATCHING_MESSAGE, origin));
 		
 		final MvcResult response = mockMvc.perform(post(ServiceRegistryConstants.HTTP_API_DEVICE_DISCOVERY_PATH + ServiceRegistryConstants.HTTP_API_OP_REGISTER_PATH)
 				.contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -140,7 +144,50 @@ public class DeviceDiscoveryAPITest {
 		assertEquals(REGISTER_DEVICE_INTERFACES_NOT_MATCHING_MESSAGE, error.errorMessage());
 	}
 	
+	//-------------------------------------------------------------------------------------------------
+	@Test
+	public void RegisterDevice_DbOperationError_ReturnInternalServerError() throws Exception {
+		final String origin = HttpMethod.POST.name() + " " + ServiceRegistryConstants.HTTP_API_DEVICE_DISCOVERY_PATH + ServiceRegistryConstants.HTTP_API_OP_REGISTER_PATH;
+	
+		Mockito.when(mockDeviceDiscoveryService.registerDevice(testDeviceDto, origin))
+			.thenThrow(new InternalServerError(INTERNAL_SERVER_ERROR_MESSAGE, origin));
+	
+		final MvcResult response = mockMvc.perform(post(ServiceRegistryConstants.HTTP_API_DEVICE_DISCOVERY_PATH + ServiceRegistryConstants.HTTP_API_OP_REGISTER_PATH)
+				.contentType(MediaType.APPLICATION_JSON_VALUE)
+				.content(Utilities.toJson(testDeviceDto)))
+				.andExpect(status().isInternalServerError())
+				.andReturn();
+		
+		final ErrorMessageDTO error = objectMapper.readValue(response.getResponse().getContentAsString(), ErrorMessageDTO.class);
+		
+		assertEquals(INTERNAL_SERVER_ERROR_MESSAGE, error.errorMessage());
+	}
+	
 	// LOOKUP
+	
+	// * 200 ok
+	// * 400 invalid parameter exception
+	// * 500 internal server error
+	
+	//-------------------------------------------------------------------------------------------------
+	@Test
+	public void LookupDevice_ReturnOk() throws Exception {
+		
+		DeviceLookupRequestDTO dto = new DeviceLookupRequestDTO(List.of(), List.of(), null, List.of());
+		
+		Mockito.when(mockDeviceDiscoveryService.lookupDevice(Mockito.any(DeviceLookupRequestDTO.class), Mockito.anyString()))
+			.thenAnswer(invocation -> new DeviceListResponseDTO(List.of(), 0));
+
+		
+		final MvcResult response = mockMvc.perform(post(ServiceRegistryConstants.HTTP_API_DEVICE_DISCOVERY_PATH + ServiceRegistryConstants.HTTP_API_OP_LOOKUP_PATH)
+				.contentType(MediaType.APPLICATION_JSON_VALUE)
+				.content(Utilities.toJson(dto)))
+				.andExpect(status().isOk())
+				.andReturn();
+		
+		final DeviceListResponseDTO responseBody = objectMapper.readValue(response.getResponse().getContentAsString(), DeviceListResponseDTO.class);
+		assertEquals(DeviceListResponseDTO.class, responseBody.getClass());
+	}
 	
 	// REVOKE
 	
