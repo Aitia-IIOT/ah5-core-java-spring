@@ -1,0 +1,354 @@
+\documentclass[a4paper]{arrowhead}
+
+\usepackage[yyyymmdd]{datetime}
+\usepackage{etoolbox}
+\usepackage[utf8]{inputenc}
+\usepackage{multirow}
+
+\renewcommand{\dateseparator}{-}
+
+\setlength{\parskip}{1em}
+
+%% Special references
+\newcommand{\fref}[1]{{\textcolor{ArrowheadBlue}{\hyperref[sec:functions:#1]{#1}}}}
+\newcommand{\mref}[1]{{\textcolor{ArrowheadPurple}{\hyperref[sec:model:#1]{#1}}}}
+\newcommand{\pdef}[1]{{\textcolor{ArrowheadGrey}{#1\label{sec:model:primitives:#1}\label{sec:model:primitives:#1s}\label{sec:model:primitives:#1es}}}}
+\newcommand{\pref}[1]{{\textcolor{ArrowheadGrey}{\hyperref[sec:model:primitives:#1]{#1}}}}
+
+\newrobustcmd\fsubsection[4]{
+  \addtocounter{subsection}{1}
+  \addcontentsline{toc}{subsection}{\protect\numberline{\thesubsection}operation \textcolor{ArrowheadBlue}{#1}}
+  \renewcommand*{\do}[1]{\rref{##1},\ }
+  \subsection*{
+    \thesubsection\quad
+    operation
+    \textcolor{ArrowheadBlue}{#1}
+    (\notblank{#2}{\mref{#2}}{})
+    \notblank{#3}{: \mref{#3}}{}
+    \notblank{#4}{/ \mref{#4}}{}
+  }
+  \label{sec:functions:#1}
+}
+\newrobustcmd\msubsection[2]{
+  \addtocounter{subsection}{1}
+  \addcontentsline{toc}{subsection}{\protect\numberline{\thesubsection}#1 \textcolor{ArrowheadPurple}{#2}}
+  \subsection*{\thesubsection\quad#1 \textcolor{ArrowheadPurple}{#2}}
+  \label{sec:model:#2} \label{sec:model:#2s} \label{sec:model:#2es}
+}
+\newrobustcmd\msubsubsection[3]{
+  \addtocounter{subsubsection}{1}
+  \addcontentsline{toc}{subsubsection}{\protect\numberline{\thesubsubsection}#1 \textcolor{ArrowheadPurple}{#2}}
+  \subsubsection*{\thesubsubsection\quad#1 \textcolor{ArrowheadPurple}{#2}}
+  \label{sec:model:#2} \label{sec:model:#2s}
+}
+%%
+
+\begin{document}
+
+%% Arrowhead Document Properties
+\ArrowheadTitle{device-discovery} % XXX = ServiceName 
+\ArrowheadServiceID{device-discovery} % ID name of service
+\ArrowheadType{Service Description}
+\ArrowheadTypeShort{SD}
+\ArrowheadVersion{5.0.0} % Arrowhead version X.Y.Z, e..g. 4.4.1
+\ArrowheadDate{\today}
+\ArrowheadAuthor{Rajmund Bocsi} % Corresponding author e.g. Jerker Delsing
+\ArrowheadStatus{DRAFT} % e..g. RELEASE, RELEASE CONDIDATE, PROTOTYPE
+\ArrowheadContact{rbocsi@aitia.ai} % Email of corresponding author
+\ArrowheadFooter{\href{www.arrowhead.eu}{www.arrowhead.eu}}
+\ArrowheadSetup
+%%
+
+%% Front Page
+\begin{center}
+  \vspace*{1cm}
+  \huge{\arrowtitle}
+
+  \vspace*{0.2cm}
+  \LARGE{\arrowtype}
+  \vspace*{1cm}
+
+  %\Large{Service ID: \textit{"\arrowid"}}
+  \vspace*{\fill}
+
+  % Front Page Image
+  %\includegraphics{figures/TODO}
+
+  \vspace*{1cm}
+  \vspace*{\fill}
+
+  % Front Page Abstract
+  \begin{abstract}
+    This document provides service description for the \textbf{device-discovery} service. 
+  \end{abstract}
+
+  \vspace*{1cm}
+
+%   \scriptsize
+%   \begin{tabularx}{\textwidth}{l X}
+%     \raisebox{-0.5\height}{\includegraphics[width=2cm]{figures/artemis_logo}} & {ARTEMIS Innovation Pilot Project: Arrowhead\newline
+%     THEME [SP1-JTI-ARTEMIS-2012-AIPP4 SP1-JTI-ARTEMIS-2012-AIPP6]\newline
+%     [Production and Energy System Automation Intelligent-Built environment and urban infrastructure for sustainable and friendly cities]}
+%   \end{tabularx}
+%   \vspace*{-0.2cm}
+ \end{center}
+
+\newpage
+%%
+
+%% Table of Contents
+\tableofcontents
+\newpage
+%%
+
+\section{Overview}
+\label{sec:overview}
+This document describes the \textbf{device-discovery} service, which enables both application and core/support systems to lookup, register and revoke devices on which the Local Cloud's systems are running. Device representation is not necessary for the base functionalities of a Local Cloud but in certain use cases (e.g. enabling onboarding) is needed therefore it is an integral part of the implementation of the requirements in Service Registry Core System. Example of this interaction is the Onboarding support system that has the capability to dynamically add new systems (and devices on which those systems are running) to the Local Cloud. To enable other systems to use, to consume it, this service needs to be offered through the Service Registry.
+
+The \textbf{device-discovery} service contains the following operations:
+
+\begin{itemize}
+    \item \textit{register} adds new devices to the Local Cloud;
+    \item \textit{revoke} removes devices from the Local Cloud;
+    \item \textit{lookup} shows the devices that matches the filtering requirements;
+\end{itemize}
+
+The rest of this document is organized as follows.
+In Section \ref{sec:functions}, we describe the abstract message operations provided by the service.
+In Section \ref{sec:model}, we end the document by presenting the data types used by the mentioned operations.
+
+\subsection{How This Service Is Meant to Be Used}
+In some use cases, the topology of the Local Cloud can be important. In these situations, an application system can use the \textit{register} operation of \textbf{device-discovery} service to register the device on which the system is running. Before that, the application system should use the \textit{lookup} operation to check whether the device is already registered or not. When a device is removed from the Local Cloud, the \textit{revoke} operation should be called.
+
+\subsection{Important Delimitations}
+\label{sec:delimitations}
+
+The requester has to identify itself to use any of the operations.
+
+\subsection{Access policy}
+\label{sec:accesspolicy}
+
+Available for anyone within the local cloud.
+
+\newpage
+
+\section{Service Operations}
+\label{sec:functions}
+
+This section describes the abstract signatures of each operations of the service. The \textbf{device-discovery} service is used to \textit{register}, \textit{lookup} and \textit{revoke} devices.
+In particular, each subsection names an operation, an input type and one or two output types (unsuccessful operations can return different structure), in that order.
+The input type is named inside parentheses, while the output type is preceded by a colon. If the operation has two output types, they are separated by a slash.
+Input and output types are only denoted when accepted or returned, respectively, by the operation in question. All abstract data types named in this section are defined in Section 3.
+
+\fsubsection{register}{DeviceRegistrationRequest}{DeviceRegistrationResponse}{ErrorResponse}
+
+The registration data must meet the following criteria:
+
+\begin{itemize}
+    \item Device names are case insensitive and have to be unique within the Local Cloud.
+    \item Device names can contain maximum 63 character of letters (english alphabet), numbers and dash (-), and has to start with a letter (also cannot ends with dash).
+    \item Device has to have at least one address. It is recommended to use MAC address and/or IP address.
+    \item Keys in the metadata structure can not contain dot (.) character.
+    \item Devices can register multiple times, but only if there are identical (same addresses, same metadata).
+\end{itemize}
+
+\fsubsection{lookup}{DeviceLookupRequest}{DeviceLookupResponse}{ErrorResponse}
+
+The lookup data must meet the following criteria:
+
+\begin{itemize}
+    \item If a filter expects a list, there is an OR relation between the elements of a filter.
+    \item There is an AND relation between different kind of filters.
+    \item If both address type and address list filter option is used, then the type of the addresses in the list must be match with the specified address type.
+\end{itemize}
+
+\fsubsection{revoke}{DeviceRevokeRequest}{OperationStatus}{ErrorResponse}
+
+The input operation data must meet the following criteria:
+
+\begin{itemize}
+    \item Devices that has system assignment can not be revoked.
+\end{itemize}
+
+
+\clearpage
+
+\section{Information Model}
+\label{sec:model}
+
+Here, all data objects that can be part of the \textbf{device-discovery} service
+provides to the hosting System are listed.
+Note that each subsection, which describes one type of object, begins with the \textit{struct} keyword, which is used to denote a collection of named fields, each with its own data type.
+As a complement to the explicitly defined types in this section, there is also a list of implicit primitive types in Section \ref{sec:model:primitives}, which are used to represent things like hashes and identifiers.
+
+\msubsection{struct}{DeviceRegistrationRequest}
+ 
+\begin{table}[ht!]
+\begin{tabularx}{\textwidth}{| p{3cm} | p{3cm} | p{2cm} | X |} \hline
+\rowcolor{gray!33} Field & Type & Mandatory & Description \\ \hline
+authentication & \hyperref[sec:model:Identity]{Identity} & yes & The requester of the operation. \\ \hline
+name & \pref{Name} & yes & Unique identifier of the device. \\ \hline
+metadata &\hyperref[sec:model:Metadata]{Metadata} & no & Additional information about the device. \\ \hline
+addresses &  \pref{List}$<$\pref{Address}$>$ & yes & Different kind of addresses of the device.  \\ \hline
+\end{tabularx}
+\end{table}
+
+\msubsection{struct}{Identity}
+
+An \pref{Object} which describes the identity of a system. It also contains whether the identified system has higher level administrative rights.
+
+\msubsection{struct}{Metadata}
+\label{sec:model:Metadata}
+
+An \pref{Object} which maps \pref{String} keys to primitive, \pref{Object} or list values.
+
+\msubsection{struct}{DeviceResponse}
+ 
+\begin{table}[ht!]
+\begin{tabularx}{\textwidth}{| p{4.25cm} | p{4cm} | X |} \hline
+\rowcolor{gray!33} Field & Type      & Description \\ \hline
+status & \pref{OperationStatus} & Status of the operation. \\ \hline
+name & \pref{Name} & Unique identifier of the registered device. \\ \hline
+metadata & \hyperref[sec:model:Metadata]{Metadata} & Additional information about the registered device. \\ \hline
+addresses &  \pref{List}$<$\hyperref[sec:model:AddressDescriptor]{AddressDescriptor}$>$ & Different kind of addresses of the registered device.  \\ \hline
+createdAt & \pref{DateTime} & Device is registered at this timestamp. \\ \hline
+updatedAt & \pref{DateTime} & Device is modified at this timestamp. \\ \hline
+\end{tabularx}
+\end{table}
+
+\clearpage
+
+\msubsection{struct}{AddressDescriptor}
+\label{sec:model:AddressDescriptor}
+
+\begin{table}[ht!]
+\begin{tabularx}{\textwidth}{| p{4.25cm} | p{3.5cm} | X |} \hline
+\rowcolor{gray!33} Field & Type      & Description \\ \hline
+type & \pref{AddressType} & Type of the address. \\ \hline
+address & \pref{Address} & Address. \\ \hline
+\end{tabularx}
+\end{table}
+
+\msubsection{struct}{ErrorResponse}
+\label{sec:model:ErrorResponse}
+
+\begin{table}[ht!]
+\begin{tabularx}{\textwidth}{| p{4.25cm} | p{3.5cm} | X |} \hline
+\rowcolor{gray!33} Field & Type      & Description \\ \hline
+status & \pref{OperationStatus} & Status of the operation. \\ \hline
+errorMessage & \pref{String} & Description of the error. \\ \hline
+errorCode &\pref{Number}  & Numerical code of the error. \\ \hline
+type & \pref{ErrorType} & Type of the error. \\ \hline
+origin & \pref{String} & Origin of the error. \\ \hline
+\end{tabularx}
+\end{table}
+
+\msubsection{struct}{DeviceLookupRequest}
+\label{sec:model:DeviceLookupRequest}
+
+\begin{table}[ht!]
+\begin{tabularx}{\textwidth}{| p{4.1cm} | p{4.8cm} | p{2cm} | X |} \hline
+\rowcolor{gray!33} Field & Type & Mandatory & Description \\ \hline
+authentication & \hyperref[sec:model:Identity]{Identity} & yes & The requester of the operation. \\ \hline
+deviceNames &  \pref{List}$<$\pref{Name}$>$ & no & Requester is looking for devices with any of the specified names. \\ \hline
+addresses &  \pref{List}$<$\pref{Address}$>$ & no & Requester is looking for devices with any of the specified addresses.   \\ \hline
+addressType &  \pref{AddressType} & no & Requester is looking for devices with the specified type of address. \\ \hline
+metadataRequirementsList & \pref{List}$<$\hyperref[sec:model:MetadataRequirements]{MetadataRequirements}$>$ & no & Requester is looking for devices that are matching the specified metadata requirements.  \\ \hline
+\end{tabularx}
+\end{table}
+
+\msubsection{struct}{MetadataRequirements}
+\label{sec:model:MetadataRequirements}
+
+A special \pref{Object} which maps \pref{String} keys to \pref{Object}, primitive or list values, where 
+
+\begin{itemize}
+    \item Keys can be paths (or multi-level keys) which access a specific value in a \hyperref[sec:model:Metadata]{Metadata} structure, where parts of the path are delimited with dot character (e.g. in case of "key.subkey" path we are looking for the key named "key" in the metadata, which associated with an embedded object and in this object we are looking for the key named "subkey").
+    \item Values are special \pref{Object}s with two fields: an operation (e.g. less than) and an actual value (e.g. a number). A metadata is matching a requirement if the specified operation returns true using the metadata value referenced by a key path as first and the actual value as second operands. 
+    \item Alternatively, values can be ordinary primitives, lists or \pref{Object}s. In this case the operation is equals by default.
+\end{itemize}
+
+\msubsection{struct}{DeviceLookupResponse}
+\label{sec:model:DeviceLookupResponse}
+
+\begin{table}[ht!]
+\begin{tabularx}{\textwidth}{| p{3cm} | p{6cm} | X |} \hline
+\rowcolor{gray!33} Field & Type      & Description \\ \hline
+status & \pref{OperationStatus} & Status of the operation. \\ \hline
+entries & \pref{List}$<$\hyperref[sec:model:DeviceLookupResult]{DeviceLookupResult}$>$     & List of device results. \\ \hline
+count & \pref{Number} & Number of returned devices. \\ \hline
+\end{tabularx}
+\end{table}
+
+\msubsection{struct}{DeviceLookupResult}
+ 
+\begin{table}[ht!]
+\begin{tabularx}{\textwidth}{| p{4.25cm} | p{4cm} | X |} \hline
+\rowcolor{gray!33} Field & Type      & Description \\ \hline
+name & \pref{Name} & Unique identifier of the device. \\ \hline
+metadata & \hyperref[sec:model:Metadata]{Metadata} & Additional information about the device. \\ \hline
+addresses &  \pref{List}$<$\hyperref[sec:model:AddressDescriptor]{AddressDescriptor}$>$ & Different kind of addresses of the device.  \\ \hline
+createdAt & \pref{DateTime} & Device is registered at this timestamp. \\ \hline
+updatedAt & \pref{DateTime} & Device is modified at this timestamp. \\ \hline
+\end{tabularx}
+\end{table}
+
+\msubsection{struct}{DeviceRevokeRequest}
+ 
+\begin{table}[ht!]
+\begin{tabularx}{\textwidth}{| p{3cm} | p{3cm} | p{2cm} | X |} \hline
+\rowcolor{gray!33} Field & Type & Mandatory & Description \\ \hline
+authentication & \hyperref[sec:model:Identity]{Identity} & yes & The requester of the operation. \\ \hline
+name & \pref{Name} & yes & Unique identifier of the device. \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Primitives}
+\label{sec:model:primitives}
+
+Types and structures mentioned throughout this document that are assumed to be available to implementations of this service.
+The concrete interpretations of each of these types and structures must be provided by any IDD document claiming to implement this service.
+
+
+\begin{table}[ht!]
+\begin{tabularx}{\textwidth}{| p{3cm} | X |} \hline
+\rowcolor{gray!33} Type & Description \\ \hline
+\pdef{Address}          & A string representation of the address. \\ \hline
+\pdef{AddressType}      & Any suitable type chosen by the implementor or service. \\ \hline
+\pdef{DateTime}         & Pinpoints a specific moment in time. \\ \hline
+\pdef{ErrorType}        & Any suitable type chosen by the implementor of service. \\ \hline
+\pdef{List}$<$A$>$      & An \textit{array} of a known number of items, each having type A. \\ \hline
+\pdef{Name}             & A string identifier that is intended to be both human and machine-readable. \\ \hline
+\pdef{Number}           & Decimal number. \\ \hline
+\pdef{Object}           & Set of primitives and possible further objects. \\ \hline
+\pdef{OperationStatus}  & Logical, textual or number value that indicates whether an operation is a success or a failure. It can be used multiple values for success and error cases to give additional information about the nature of the result. \\ \hline
+\pdef{String}           & A chain of characters. \\ \hline
+\end{tabularx}
+\end{table}
+
+\newpage
+
+\bibliographystyle{IEEEtran}
+\bibliography{bibliography}
+
+\newpage
+
+\section{Revision History}
+\subsection{Amendments}
+
+\noindent\begin{tabularx}{\textwidth}{| p{1cm} | p{3cm} | p{2cm} | X | p{4cm} |} \hline
+\rowcolor{gray!33} No. & Date & Version & Subject of Amendments & Author \\ \hline
+
+1 & YYYY-MM-DD & \arrowversion & & Xxx Yyy \\ \hline
+\end{tabularx}
+
+\subsection{Quality Assurance}
+
+\noindent\begin{tabularx}{\textwidth}{| p{1cm} | p{3cm} | p{2cm} | X |} \hline
+\rowcolor{gray!33} No. & Date & Version & Approved by \\ \hline
+
+1 & YYYY-MM-DD & \arrowversion  &  \\ \hline
+
+\end{tabularx}
+
+\end{document}
